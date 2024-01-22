@@ -42,13 +42,13 @@ func (rw *Wrapper) Body() (interface{}, error) {
 		return "", nil
 	}
 
-	if IsPlainText(rw.Header()) {
+	if isPlainText(rw.Header()) {
 		return rw.body.String(), nil
 	}
 
 	var reader io.Reader = bytes.NewReader(rw.body.Bytes())
 
-	if IsGzip(rw.Header()) {
+	if isGzip(rw.Header()) {
 		gzipReader, err := gzip.NewReader(reader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decompress gzip body: %w", err)
@@ -56,7 +56,7 @@ func (rw *Wrapper) Body() (interface{}, error) {
 		reader = gzipReader
 	}
 
-	if rw.ContentType() != "" && !IsJSON(rw.Header()) {
+	if rw.ContentType() != "" && !isJSON(rw.Header()) {
 		return nil, fmt.Errorf("content-type is not application/json")
 	}
 
