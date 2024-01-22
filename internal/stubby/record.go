@@ -38,7 +38,7 @@ type File struct {
 	Records []*Record `json:"stubs"`
 }
 
-func (f *File) Add(r *Record) {
+func (f *File) add(r *Record) {
 	if r != nil {
 		f.Records = append(f.Records, r)
 	}
@@ -69,7 +69,7 @@ func WriteToFile(filePath string, record *Record) error {
 	if err != nil && !errors.Is(err, io.EOF) {
 		return fmt.Errorf("failed to unmarshal file %s: %w", filePath, err)
 	}
-	content.Add(record)
+	content.add(record)
 
 	err = file.Truncate(0)
 	if err != nil {
