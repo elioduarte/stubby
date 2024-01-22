@@ -15,35 +15,6 @@ type Matcher struct {
 	matches map[string]int
 }
 
-func (m *Matcher) Add(r *Record) error {
-	if r.Request.Query == nil {
-		m.appendRecord(m.anyQueryKey(r.Request.Method, r.Request.Pathname), r)
-		return nil
-	}
-
-	if len(r.Request.Query) == 0 {
-		m.appendRecord(m.emptyQueryKey(r.Request.Method, r.Request.Pathname), r)
-		return nil
-	}
-
-	rawQuery, err := mapToString(r.Request.Query)
-	if err != nil {
-		return err
-	}
-	m.appendRecord(m.allQueryKey(r.Request.Method, r.Request.Pathname, rawQuery), r)
-
-	return nil
-}
-
-func (m *Matcher) appendRecord(k string, r *Record) {
-	records := m.records[k]
-	m.records[k] = append(records, r)
-}
-
-func (m *Matcher) Size() int {
-	return len(m.records)
-}
-
 func (m *Matcher) Match(r *http.Request) (*Record, bool) {
 	if record, ok := m.matchKey(m.allQueryKey(r.Method, r.URL.Path, r.URL.Query().Encode())); ok {
 		return record, true
@@ -78,11 +49,11 @@ func (m *Matcher) anyQueryKey(method, pathname string) string {
 	return m.allQueryKey(method, pathname, "*")
 }
 
-func (m *Matcher) AddFile(f File) error {
+func (m *Matcher) addFile(f File) error {
 	var errs []error
 
 	for _, record := range f.Records {
-		err := m.Add(record)
+		err := m.addRecord(record)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -93,6 +64,31 @@ func (m *Matcher) AddFile(f File) error {
 	}
 
 	return nil
+}
+
+func (m *Matcher) addRecord(r *Record) error {
+	if r.Request.Query == nil {
+		m.setRecord(m.anyQueryKey(r.Request.Method, r.Request.Pathname), r)
+		return nil
+	}
+
+	if len(r.Request.Query) == 0 {
+		m.setRecord(m.emptyQueryKey(r.Request.Method, r.Request.Pathname), r)
+		return nil
+	}
+
+	rawQuery, err := mapToString(r.Request.Query)
+	if err != nil {
+		return err
+	}
+	m.setRecord(m.allQueryKey(r.Request.Method, r.Request.Pathname, rawQuery), r)
+
+	return nil
+}
+
+func (m *Matcher) setRecord(k string, r *Record) {
+	records := m.records[k]
+	m.records[k] = append(records, r)
 }
 
 func NewMatcher(dirPath string) (*Matcher, error) {
@@ -119,9 +115,9 @@ func NewMatcher(dirPath string) (*Matcher, error) {
 			continue
 		}
 
-		err = matcher.AddFile(fileJSON)
+		err = matcher.addFile(fileJSON)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed add file to matcher %s : %w", fileName.Name(), err))
+			errs = append(errs, fmt.Errorf("failed addRecord file to matcher %s : %w", fileName.Name(), err))
 		}
 	}
 
