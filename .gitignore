@@ -1,0 +1,5 @@
+dist/
+stubs
+.idea/
+.tool-versions
+bin/stubby*

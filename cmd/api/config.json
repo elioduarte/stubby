@@ -1,0 +1,39 @@
+{
+  "default": {
+    "url": "https://gw-staging.hellofresh.com"
+  },
+  "prefixes": [
+    {
+      "url": "https://remote-config-service.staging-k8s.hellofresh.io",
+      "prefix": "/remote-config-service"
+    },
+    {
+      "url": "https://contentful-sync-service.staging-k8s.hellofresh.io",
+      "prefix": "/contentful-sync-service"
+    },
+    {
+      "url": "https://translations-service.staging-k8s.hellofresh.io",
+      "prefix": "/translations-service"
+    },
+    {
+      "url": "https://signin-service.staging-k8s.hellofresh.io",
+      "prefix": "/signin-service"
+    },
+    {
+      "url": "https://auth-service.staging-k8s.hellofresh.io",
+      "prefix": "/auth-service"
+    },
+    {
+      "url": "https://products-service.staging-k8s.hellofresh.io",
+      "prefix": "/products-service"
+    },
+    {
+      "url": "https://shopping-platform-service.staging-k8s.hellofresh.io",
+      "prefix": "/shopping-platform-service"
+    },
+    {
+      "url": "https://nutritional-profile-service-api.staging-k8s.hellofresh.io",
+      "prefix": "/nutritional-profile-service"
+    }
+  ]
+}
