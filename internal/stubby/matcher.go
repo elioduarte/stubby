@@ -16,7 +16,7 @@ type Matcher struct {
 }
 
 func (m *Matcher) Match(r *http.Request) (*Record, bool) {
-	if record, ok := m.matchKey(m.allQueryKey(r.Method, r.URL.Path, r.URL.Query().Encode())); ok {
+	if record, ok := m.matchKey(m.exactQueryKey(r.Method, r.URL.Path, r.URL.Query().Encode())); ok {
 		return record, true
 	}
 
@@ -37,16 +37,16 @@ func (m *Matcher) matchKey(key string) (*Record, bool) {
 	return nil, false
 }
 
-func (m *Matcher) allQueryKey(method string, pathname, query string) string {
+func (m *Matcher) exactQueryKey(method string, pathname, query string) string {
 	return fmt.Sprintf("#%s#%s#%s#", method, pathname, query)
 }
 
 func (m *Matcher) emptyQueryKey(method, pathname string) string {
-	return m.allQueryKey(method, pathname, "")
+	return m.exactQueryKey(method, pathname, "")
 }
 
 func (m *Matcher) anyQueryKey(method, pathname string) string {
-	return m.allQueryKey(method, pathname, "*")
+	return m.exactQueryKey(method, pathname, "*")
 }
 
 func (m *Matcher) addFile(f File) error {
@@ -81,7 +81,7 @@ func (m *Matcher) addRecord(r *Record) error {
 	if err != nil {
 		return err
 	}
-	m.setRecord(m.allQueryKey(r.Request.Method, r.Request.Pathname, rawQuery), r)
+	m.setRecord(m.exactQueryKey(r.Request.Method, r.Request.Pathname, rawQuery), r)
 
 	return nil
 }
