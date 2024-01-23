@@ -7,9 +7,15 @@ import (
 	"strings"
 )
 
+// URL is used instead of url.URL, to customize the JSON output of the URL.
+type URL struct {
+	Scheme string `json:"scheme"`
+	Host   string `json:"host"`
+}
+
 type Target struct {
-	URL    url.URL `json:"url"`
-	Prefix string  `json:"prefix,omitempty"`
+	URL    URL    `json:"url"`
+	Prefix string `json:"prefix,omitempty"`
 }
 
 func (t *Target) Matches(r *http.Request) bool {
@@ -42,7 +48,7 @@ func (t *Target) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	t.URL = url.URL{
+	t.URL = URL{
 		Scheme: parsedURL.Scheme,
 		Host:   parsedURL.Host,
 	}
