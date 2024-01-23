@@ -12,7 +12,6 @@ func (app *application) routes() http.Handler {
 	mux.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowed)
 	mux.Use(app.recoverPanic)
 	mux.Use(app.skipIgnoredURL)
-	// always force a fresh response from the server
 	mux.Use(app.NoCacheMiddleware)
 	mux.NotFound = http.HandlerFunc(app.forward)
 
