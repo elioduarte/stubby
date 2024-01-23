@@ -18,10 +18,10 @@ func (app *application) routes() http.Handler {
 
 	mux.NotFound = http.HandlerFunc(app.forward)
 
-	mux.HandleFunc("/_/record/:profile", app.recordProfile, "POST")
-	mux.HandleFunc("/_/replay/:profile", app.replayProfile, "POST")
-	mux.HandleFunc("/_/forward", app.enableForward, "POST")
-	mux.HandleFunc("/_/status", app.responseStatus, "GET")
+	mux.HandleFunc("/_/record/:profile", app.recordHandler, "POST")
+	mux.HandleFunc("/_/replay/:profile", app.replayHandler, "POST")
+	mux.HandleFunc("/_/forward", app.forwardHandler, "POST")
+	mux.HandleFunc("/_/status", app.statusHandler, "GET")
 
 	return mux
 }

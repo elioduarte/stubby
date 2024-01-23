@@ -2,7 +2,6 @@ package main
 
 import (
 	"log/slog"
-	"net/http"
 	"net/http/httputil"
 	"sync"
 
@@ -45,28 +44,4 @@ type application struct {
 	recordsLock sync.Mutex
 	records     []*stubby.Record
 	matcher     *stubby.Matcher
-}
-
-func (app *application) proxyDirector(r *http.Request) {
-	var found bool
-
-	for _, targetURL := range app.config.targets.Prefixes {
-		if targetURL.Matches(r) {
-			targetURL.Rewrite(r)
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		app.config.targets.Default.Rewrite(r)
-	}
-
-	app.logger.Debug("requestModified",
-		"http.method", r.Method,
-		"http.host", r.URL.Host,
-		"http.path", r.URL.Path,
-		"http.scheme", r.URL.Scheme,
-		"http.query", r.URL.RawQuery,
-	)
 }

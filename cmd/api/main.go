@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/http/httputil"
 	"os"
 	"runtime/debug"
@@ -84,7 +85,7 @@ func run() error {
 		logger: logger,
 		proxy:  &httputil.ReverseProxy{},
 	}
-	app.proxy.Director = app.proxyDirector
+	app.proxy.Director = func(r *http.Request) {}
 	app.proxy.ErrorHandler = app.serverError
 
 	return app.serveHTTP()

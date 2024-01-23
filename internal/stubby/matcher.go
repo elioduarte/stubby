@@ -16,11 +16,11 @@ type Matcher struct {
 }
 
 func (m *Matcher) Match(r *http.Request) (*Record, bool) {
-	if record, ok := m.matchKey(m.exactQueryKey(r.Method, r.URL.Path, r.URL.Query().Encode())); ok {
+	if record, ok := m.matchKey(m.exactQueryKey(r.URL.Host, r.Method, r.URL.Path, r.URL.Query().Encode())); ok {
 		return record, true
 	}
 
-	if record, ok := m.matchKey(m.anyQueryKey(r.Method, r.URL.Path)); ok {
+	if record, ok := m.matchKey(m.anyQueryKey(r.URL.Host, r.Method, r.URL.Path)); ok {
 		return record, true
 	}
 
@@ -37,16 +37,16 @@ func (m *Matcher) matchKey(key string) (*Record, bool) {
 	return nil, false
 }
 
-func (m *Matcher) exactQueryKey(method string, pathname, query string) string {
-	return fmt.Sprintf("#%s#%s#%s#", method, pathname, query)
+func (m *Matcher) exactQueryKey(host, method, pathname, query string) string {
+	return fmt.Sprintf("#%s#%s#%s#%s#", host, method, pathname, query)
 }
 
-func (m *Matcher) emptyQueryKey(method, pathname string) string {
-	return m.exactQueryKey(method, pathname, "")
+func (m *Matcher) emptyQueryKey(host, method, pathname string) string {
+	return m.exactQueryKey(host, method, pathname, "")
 }
 
-func (m *Matcher) anyQueryKey(method, pathname string) string {
-	return m.exactQueryKey(method, pathname, "*")
+func (m *Matcher) anyQueryKey(host, method, pathname string) string {
+	return m.exactQueryKey(host, method, pathname, "*")
 }
 
 func (m *Matcher) addFile(f File) error {
@@ -68,12 +68,12 @@ func (m *Matcher) addFile(f File) error {
 
 func (m *Matcher) addRecord(r *Record) error {
 	if r.Request.Query == nil {
-		m.setRecord(m.anyQueryKey(r.Request.Method, r.Request.Pathname), r)
+		m.setRecord(m.anyQueryKey(r.Request.Host, r.Request.Method, r.Request.Pathname), r)
 		return nil
 	}
 
 	if len(r.Request.Query) == 0 {
-		m.setRecord(m.emptyQueryKey(r.Request.Method, r.Request.Pathname), r)
+		m.setRecord(m.emptyQueryKey(r.Request.Host, r.Request.Method, r.Request.Pathname), r)
 		return nil
 	}
 
@@ -81,7 +81,7 @@ func (m *Matcher) addRecord(r *Record) error {
 	if err != nil {
 		return err
 	}
-	m.setRecord(m.exactQueryKey(r.Request.Method, r.Request.Pathname, rawQuery), r)
+	m.setRecord(m.exactQueryKey(r.Request.Host, r.Request.Method, r.Request.Pathname, rawQuery), r)
 
 	return nil
 }

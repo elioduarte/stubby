@@ -13,33 +13,7 @@ import (
 	"github.com/alexedwards/flow"
 )
 
-func (app *application) getProfile(r *http.Request) (string, error) {
-	profile := flow.Param(r.Context(), "profile")
-	if profile == "" {
-		return "", errors.New("empty profile")
-	}
-
-	return strings.ToLower(profile), nil
-}
-
-func (app *application) changeStatus(status Status, profile string) {
-	app.logger.Info("changeStatus", "new", status, "profile", profile)
-
-	app.statusLock.Lock()
-	defer app.statusLock.Unlock()
-
-	app.status = status
-	app.profile = strings.ToLower(profile)
-}
-
-func (app *application) currentStatus() Status {
-	app.statusLock.RLock()
-	defer app.statusLock.RUnlock()
-
-	return app.status
-}
-
-func (app *application) responseStatus(w http.ResponseWriter, r *http.Request) {
+func (app *application) statusHandler(w http.ResponseWriter, r *http.Request) {
 	app.statusLock.RLock()
 	data := struct {
 		Profile string   `json:"profile"`
@@ -58,8 +32,8 @@ func (app *application) responseStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) recordProfile(w http.ResponseWriter, r *http.Request) {
-	profile, err := app.getProfile(r)
+func (app *application) recordHandler(w http.ResponseWriter, r *http.Request) {
+	profile, err := app.currentProfile(r)
 	if err != nil {
 		app.badRequest(w, r, err)
 		return
@@ -67,11 +41,11 @@ func (app *application) recordProfile(w http.ResponseWriter, r *http.Request) {
 
 	app.changeStatus(Recording, profile)
 
-	app.responseStatus(w, r)
+	app.statusHandler(w, r)
 }
 
-func (app *application) replayProfile(w http.ResponseWriter, r *http.Request) {
-	profile, err := app.getProfile(r)
+func (app *application) replayHandler(w http.ResponseWriter, r *http.Request) {
+	profile, err := app.currentProfile(r)
 	if err != nil {
 		app.badRequest(w, r, err)
 		return
@@ -85,33 +59,21 @@ func (app *application) replayProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app.responseStatus(w, r)
+	app.statusHandler(w, r)
 }
 
-func (app *application) loadProfile(profile string) error {
-	app.logger.Debug("loadingProfile", "profile", profile)
-
-	profilePath := filepath.Join(app.config.stubDir, profile)
-	matcher, err := stubby.NewMatcher(profilePath)
-	if err != nil {
-		return fmt.Errorf("failed to create stub matcher %s: %w", profilePath, err)
-	}
-
-	app.matcher = matcher
-
-	return nil
-}
-
-func (app *application) enableForward(w http.ResponseWriter, r *http.Request) {
+func (app *application) forwardHandler(w http.ResponseWriter, r *http.Request) {
 	app.changeStatus(Forwarding, "")
 
-	app.responseStatus(w, r)
+	app.statusHandler(w, r)
 }
 
 func (app *application) forward(w http.ResponseWriter, r *http.Request) {
 	status := app.currentStatus()
 
-	if app.replayResponse(status, w, r) {
+	app.rewrite(r)
+
+	if app.replay(status, w, r) {
 		return
 	}
 
@@ -128,11 +90,35 @@ func (app *application) forward(w http.ResponseWriter, r *http.Request) {
 	)
 
 	app.backgroundTask(r, func() error {
-		return app.recordResponse(status, rw, r)
+		return app.record(status, rw, r)
 	})
 }
 
-func (app *application) recordResponse(status Status, rw *response.Wrapper, r *http.Request) error {
+func (app *application) rewrite(r *http.Request) {
+	var found bool
+
+	for _, targetURL := range app.config.targets.Prefixes {
+		if targetURL.Matches(r) {
+			targetURL.Rewrite(r)
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		app.config.targets.Default.Rewrite(r)
+	}
+
+	app.logger.Debug("requestModified",
+		"http.method", r.Method,
+		"http.host", r.URL.Host,
+		"http.path", r.URL.Path,
+		"http.scheme", r.URL.Scheme,
+		"http.query", r.URL.RawQuery,
+	)
+}
+
+func (app *application) record(status Status, rw *response.Wrapper, r *http.Request) error {
 	app.logger.Debug("recordingResponse",
 		"http.method", r.Method,
 		"http.path", r.URL.Path,
@@ -164,6 +150,7 @@ func (app *application) recordResponse(status Status, rw *response.Wrapper, r *h
 	record := stubby.Record{
 		Profile: app.profile,
 		Request: stubby.Request{
+			Host:     r.URL.Host,
 			Pathname: r.URL.Path,
 			Method:   r.Method,
 			Query:    response.QueryToJSON(r.URL.Query()),
@@ -192,7 +179,7 @@ func (app *application) recordResponse(status Status, rw *response.Wrapper, r *h
 	return nil
 }
 
-func (app *application) replayResponse(status Status, w http.ResponseWriter, r *http.Request) bool {
+func (app *application) replay(status Status, w http.ResponseWriter, r *http.Request) bool {
 	if status != Replaying {
 		return false
 	}
@@ -217,4 +204,44 @@ func (app *application) replayResponse(status Status, w http.ResponseWriter, r *
 	)
 
 	return true
+}
+
+func (app *application) currentProfile(r *http.Request) (string, error) {
+	profile := flow.Param(r.Context(), "profile")
+	if profile == "" {
+		return "", errors.New("empty profile")
+	}
+
+	return strings.ToLower(profile), nil
+}
+
+func (app *application) loadProfile(profile string) error {
+	app.logger.Debug("loadingProfile", "profile", profile)
+
+	profilePath := filepath.Join(app.config.stubDir, profile)
+	matcher, err := stubby.NewMatcher(profilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create stub matcher %s: %w", profilePath, err)
+	}
+
+	app.matcher = matcher
+
+	return nil
+}
+
+func (app *application) changeStatus(status Status, profile string) {
+	app.logger.Info("changeStatus", "new", status, "profile", profile)
+
+	app.statusLock.Lock()
+	defer app.statusLock.Unlock()
+
+	app.status = status
+	app.profile = strings.ToLower(profile)
+}
+
+func (app *application) currentStatus() Status {
+	app.statusLock.RLock()
+	defer app.statusLock.RUnlock()
+
+	return app.status
 }

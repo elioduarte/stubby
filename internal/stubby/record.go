@@ -12,6 +12,7 @@ import (
 )
 
 type Request struct {
+	Host     string                 `json:"host,omitempty"`
 	Pathname string                 `json:"pathname"`
 	Method   string                 `json:"method"`
 	Query    map[string]interface{} `json:"query"`
