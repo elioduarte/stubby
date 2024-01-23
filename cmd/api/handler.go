@@ -175,9 +175,8 @@ func (app *application) recordResponse(status Status, rw *response.Wrapper, r *h
 	}
 
 	app.recordsLock.Lock()
-	defer app.recordsLock.Unlock()
-
 	app.records = append(app.records, &record)
+	app.recordsLock.Unlock()
 	app.wg.Add(1)
 
 	app.logger.Debug("responseRecorded",
