@@ -69,10 +69,9 @@ func (app *application) forwardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) forward(w http.ResponseWriter, r *http.Request) {
-	status := app.currentStatus()
-
 	app.rewrite(r)
 
+	status := app.currentStatus()
 	if app.replay(status, w, r) {
 		return
 	}
@@ -89,9 +88,7 @@ func (app *application) forward(w http.ResponseWriter, r *http.Request) {
 		"http.content_type", rw.ContentType(),
 	)
 
-	app.backgroundTask(r, func() error {
-		return app.record(status, rw, r)
-	})
+	app.record(status, rw, r)
 }
 
 func (app *application) rewrite(r *http.Request) {
@@ -118,19 +115,9 @@ func (app *application) rewrite(r *http.Request) {
 	)
 }
 
-func (app *application) record(status Status, rw *response.Wrapper, r *http.Request) error {
-	app.logger.Debug("recordingResponse",
-		"http.method", r.Method,
-		"http.path", r.URL.Path,
-		"http.scheme", r.URL.Scheme,
-		"http.query", r.URL.RawQuery,
-		"http.status_code", rw.StatusCode(),
-		"http.content_encoding", rw.ContentEncoding(),
-		"http.content_type", rw.ContentType(),
-	)
-
+func (app *application) record(status Status, rw *response.Wrapper, r *http.Request) {
 	if status != Recording {
-		app.logger.Debug("recordDropped",
+		app.logger.Debug("recordIgnored",
 			"http.method", r.Method,
 			"http.path", r.URL.Path,
 			"http.scheme", r.URL.Scheme,
@@ -139,44 +126,56 @@ func (app *application) record(status Status, rw *response.Wrapper, r *http.Requ
 			"http.content_encoding", rw.ContentEncoding(),
 			"http.content_type", rw.ContentType(),
 		)
+		return
+	}
+
+	app.backgroundTask(r, func() error {
+		app.logger.Debug("recordingResponse",
+			"http.method", r.Method,
+			"http.path", r.URL.Path,
+			"http.scheme", r.URL.Scheme,
+			"http.query", r.URL.RawQuery,
+			"http.status_code", rw.StatusCode(),
+			"http.content_encoding", rw.ContentEncoding(),
+			"http.content_type", rw.ContentType(),
+		)
+
+		body, err := rw.Body()
+		if err != nil {
+			return fmt.Errorf("failed to response body: %w", err)
+		}
+
+		record := stubby.Record{
+			Profile: app.profile,
+			Request: stubby.Request{
+				Host:     r.URL.Host,
+				Pathname: r.URL.Path,
+				Method:   r.Method,
+				Query:    response.QueryToJSON(r.URL.Query()),
+			},
+			Response: stubby.Response{
+				StatusCode: rw.StatusCode(),
+				Body:       body,
+			},
+		}
+
+		app.recordsLock.Lock()
+		app.records = append(app.records, &record)
+		app.recordsLock.Unlock()
+		app.wg.Add(1)
+
+		app.logger.Debug("responseRecorded",
+			"http.method", r.Method,
+			"http.path", r.URL.Path,
+			"http.scheme", r.URL.Scheme,
+			"http.query", r.URL.RawQuery,
+			"http.status_code", rw.StatusCode(),
+			"http.content_encoding", rw.ContentEncoding(),
+			"http.content_type", rw.ContentType(),
+		)
+
 		return nil
-	}
-
-	body, err := rw.Body()
-	if err != nil {
-		return fmt.Errorf("failed to response body: %w", err)
-	}
-
-	record := stubby.Record{
-		Profile: app.profile,
-		Request: stubby.Request{
-			Host:     r.URL.Host,
-			Pathname: r.URL.Path,
-			Method:   r.Method,
-			Query:    response.QueryToJSON(r.URL.Query()),
-		},
-		Response: stubby.Response{
-			StatusCode: rw.StatusCode(),
-			Body:       body,
-		},
-	}
-
-	app.recordsLock.Lock()
-	app.records = append(app.records, &record)
-	app.recordsLock.Unlock()
-	app.wg.Add(1)
-
-	app.logger.Debug("responseRecorded",
-		"http.method", r.Method,
-		"http.path", r.URL.Path,
-		"http.scheme", r.URL.Scheme,
-		"http.query", r.URL.RawQuery,
-		"http.status_code", rw.StatusCode(),
-		"http.content_encoding", rw.ContentEncoding(),
-		"http.content_type", rw.ContentType(),
-	)
-
-	return nil
+	})
 }
 
 func (app *application) replay(status Status, w http.ResponseWriter, r *http.Request) bool {

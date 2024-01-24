@@ -10,10 +10,11 @@ func (app *application) routes() http.Handler {
 	mux := flow.New()
 
 	mux.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowed)
+	mux.NotFound = http.HandlerFunc(app.forward)
+
 	mux.Use(app.recoverPanic)
 	mux.Use(app.skipIgnoredURL)
 	mux.Use(app.NoCacheMiddleware)
-	mux.NotFound = http.HandlerFunc(app.forward)
 
 	mux.HandleFunc("/_/record/:profile", app.recordHandler, "POST")
 	mux.HandleFunc("/_/replay/:profile", app.replayHandler, "POST")
