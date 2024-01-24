@@ -1,0 +1,54 @@
+{
+	"stubs": [
+		{
+			"request": {
+        "host": "",
+				"pathname": "/test",
+				"method": "GET"
+			},
+			"response": {
+				"statusCode": 200,
+				"body": "any query"
+			}
+		},
+    {
+      "request": {
+        "pathname": "/test",
+        "method": "GET",
+        "query": {}
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "empty query"
+      }
+    },
+    {
+      "request": {
+        "pathname": "/test",
+        "method": "GET",
+        "query": {
+          "client_id": "senf",
+          "grant_type": "client_credentials"
+        }
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "exact query 1"
+      }
+    },
+    {
+      "request": {
+        "pathname": "/test",
+        "method": "GET",
+        "query": {
+          "client_id": "senf",
+          "grant_type": "client_credentials"
+        }
+      },
+      "response": {
+        "statusCode": 200,
+        "body": "exact query 2"
+      }
+    }
+	]
+}
